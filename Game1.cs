@@ -282,7 +282,7 @@ namespace Game2
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
         KeyboardState oldState, newState;
-        Texture2D stone, menu;
+        Texture2D stone, menu, blinkingline;
         int[,] spielfeld = new int[10, 20];
         bool keypressed = false;
         Stone newStone;
@@ -324,6 +324,7 @@ namespace Game2
             spriteBatch = new SpriteBatch(GraphicsDevice);
             stone = Content.Load<Texture2D>("Stone");
             menu = Content.Load<Texture2D>("Pausemenu");
+            blinkingline = Content.Load<Texture2D>("BlinkingLine");
         }
 
         protected override void UnloadContent()
@@ -415,7 +416,7 @@ namespace Game2
             }
             if (gamestate == Gamestate.blink)
             {
-                spriteBatch.Draw(menu, new Rectangle(0,fullLines[0]*20,200,(fullLines.Count)*20), Color.White);
+                spriteBatch.Draw(blinkingline, new Rectangle(0,fullLines[0]*20,200,20), Color.White);
             }
             if (gamestate == Gamestate.pause)
             {
