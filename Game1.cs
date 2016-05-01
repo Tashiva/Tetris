@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
 
 
 namespace Game2
@@ -281,12 +282,20 @@ namespace Game2
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
         KeyboardState oldState, newState;
-        Texture2D stone;
+        Texture2D stone, menu;
         int[,] spielfeld = new int[10, 20];
         bool keypressed = false;
         Stone newStone;
         int[,] setStones = new int[10,20];
-        float rotTimer = 0f;
+        float rotTimer, blinkTimer = 0f;
+        List<int> fullLines = new List<int>();
+        enum Gamestate
+        {
+            pause,
+            play,
+            blink
+        };
+        Gamestate gamestate = Gamestate.play;
 
         public Game1()
         {
@@ -314,6 +323,7 @@ namespace Game2
         {
             spriteBatch = new SpriteBatch(GraphicsDevice);
             stone = Content.Load<Texture2D>("Stone");
+            menu = Content.Load<Texture2D>("Pausemenu");
         }
 
         protected override void UnloadContent()
@@ -323,48 +333,68 @@ namespace Game2
 
         protected override void Update(GameTime gameTime)
         {
-            if (!newStone.Stonepresent)
+
+            if (gamestate == Gamestate.blink)
             {
-                newStone = new Stone();
-            }
-            if ((gameTime.TotalGameTime.Milliseconds % 400 == 0))
-            {
-                for (int i = 0; i < 4; i++)
-                    newStone.set(i, new Vector2(0, 20));
-            }
-            if ((gameTime.TotalGameTime.Milliseconds % 50 == 0))
-            {
-                keypressed = false;
-            }
-            int hilfe = 0;
-            for (int y = 0; y < 20; y++)
-            {
-                for (int x = 0; x < 10; x++)
+                blinkTimer += gameTime.ElapsedGameTime.Milliseconds;
+                if (blinkTimer > 2000)
                 {
-                    if (setStones[x, y] == 1)
-                        hilfe += 1;
-                }
-                if (hilfe == 10)
-                    for (int y2 = y; y2 > 0; y2--)
+                    for (int index = (fullLines.Count)-1; index >= 0; index--) // für jede volle Zeile beginnend bei der untersten
                     {
-                        for (int x = 0; x < 10; x++)
-                        {
-                            setStones[x, y2] = setStones[x, y2 - 1];
-                        }
-                        
+                        for (int b = fullLines[index]; b > 0; b--) // gehe von der vollen Zeile bis Zeile 1
+                            for (int x = 0; x < 10; x++)
+                                setStones[x, b] = setStones[x, b - 1]; // ersetze die Zeile durch die Zeile darüber
                     }
-                hilfe = 0;
+                    fullLines.Clear();
+                    gamestate = Gamestate.play;
+                    blinkTimer = 0;
+                }
             }
-            for (int i = 0; i < 4; i++)
-                if (newStone.get(i).Y >= 380 || setStones[newStone.XCoord(i), newStone.YCoord(i)+1] == 1)
+
+            if (gamestate == Gamestate.play)
+            {
+                if (!newStone.Stonepresent)
                 {
-                    newStone.Stonepresent = false;
-                    for (int j = 0; j < 4; j++)
-                        setStones[newStone.XCoord(j), newStone.YCoord(j)] = 1;
+                    newStone = new Stone();
+                }
+                if ((gameTime.TotalGameTime.Milliseconds % 400 == 0))
+                {
+                    for (int i = 0; i < 4; i++)
+                        newStone.set(i, new Vector2(0, 20));
+                }
+                if ((gameTime.TotalGameTime.Milliseconds % 50 == 0))
+                {
+                    keypressed = false;
+                }
+                int hilfe = 0;
+                for (int y = 0; y < 20; y++)
+                {
+                    for (int x = 0; x < 10; x++)
+                    {
+                        if (setStones[x, y] == 1)
+                            hilfe += 1;
+                    }
+
+                    if (hilfe >= 4)
+                        fullLines.Add(y);
+
+                    hilfe = 0;
                 }
 
-            rotTimer += gameTime.ElapsedGameTime.Milliseconds;
-            
+                if (fullLines.Count > 0)
+                    gamestate = Gamestate.blink;
+
+                for (int i = 0; i < 4; i++)
+                    if (newStone.get(i).Y >= 380 || setStones[newStone.XCoord(i), newStone.YCoord(i) + 1] == 1)
+                    {
+                        newStone.Stonepresent = false;
+                        for (int j = 0; j < 4; j++)
+                            setStones[newStone.XCoord(j), newStone.YCoord(j)] = 1;
+                    }
+
+                rotTimer += gameTime.ElapsedGameTime.Milliseconds;
+
+            }
             UpdateInput();
             base.Update(gameTime);
         }
@@ -383,17 +413,50 @@ namespace Game2
                         spriteBatch.Draw(stone, new Vector2(x*20, y*20), Color.White);
                 }
             }
+            if (gamestate == Gamestate.blink)
+            {
+                spriteBatch.Draw(menu, new Rectangle(0,fullLines[0]*20,200,(fullLines.Count)*20), Color.White);
+            }
+            if (gamestate == Gamestate.pause)
+            {
+                spriteBatch.Draw(menu, new Rectangle(10, 10, 100, 100), Color.White);
+            }
             spriteBatch.End();
             base.Draw(gameTime);
         }
+
+        protected void Blinken(int y)
+        {
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+        }
         private void UpdateInput()
         {
+             
+            oldState = newState;
             newState = Keyboard.GetState();
 
             if (newState.IsKeyDown(Keys.Space))
             {
                 Exit();
             }
+
+            if (gamestate == Gamestate.pause && newState.GetPressedKeys().Length != 0 && oldState.IsKeyUp(Keys.Escape))
+            {
+                gamestate = Gamestate.play;
+                oldState = newState;
+            }
+
+
+            if ((newState.IsKeyDown(Keys.Escape) && oldState.IsKeyUp(Keys.Escape)) && ((gamestate == Gamestate.play || gamestate == Gamestate.blink)))
+            {
+                gamestate = Gamestate.pause;
+            }
+
+
+        
+
+
+
 
             if (keypressed == false)
             {
