@@ -343,8 +343,12 @@ namespace Game2
                     for (int index = (fullLines.Count)-1; index >= 0; index--) // für jede volle Zeile beginnend bei der untersten
                     {
                         for (int b = fullLines[index]; b > 0; b--) // gehe von der vollen Zeile bis Zeile 1
+                        {
+                            for (int i = 0; i < fullLines.Count; i++)
+                                fullLines[i] -= 1;
                             for (int x = 0; x < 10; x++)
                                 setStones[x, b] = setStones[x, b - 1]; // ersetze die Zeile durch die Zeile darüber
+                        }
                     }
                     fullLines.Clear();
                     gamestate = Gamestate.play;
@@ -416,7 +420,10 @@ namespace Game2
             }
             if (gamestate == Gamestate.blink)
             {
-                spriteBatch.Draw(blinkingline, new Rectangle(0,fullLines[0]*20,200,20), Color.White);
+                for (int i = 0; i < fullLines.Count-1; i++)
+                {
+                    spriteBatch.Draw(blinkingline, new Rectangle(0, fullLines[i] * 20, 200, 20), Color.White);
+                }
             }
             if (gamestate == Gamestate.pause)
             {
